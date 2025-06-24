@@ -135,3 +135,54 @@ int main(int argc, char** argv) {
     return RUN_ALL_TESTS();
 }
 
+#include <gtest/gtest.h>
+#include <iostream>
+#include <map>
+#include <string>
+
+// 用于传递外部参数给测试类
+struct GlobalTestConfig {
+    std::string zip_path;
+    std::map<std::string, std::string> file_map;
+
+    static GlobalTestConfig& Instance() {
+        static GlobalTestConfig config;
+        return config;
+    }
+};
+
+int main(int argc, char** argv) {
+    ::testing::InitGoogleTest(&argc, argv);
+
+    // === Step 1: 检查参数 ===
+    if (argc < 2) {
+        std::cerr << "[ERROR] Usage: " << argv[0] << " <zip_path>" << std::endl;
+        return 1;
+    }
+
+    std::string input_zip_path = argv[1];
+
+    // === Step 2: 配置全局测试数据 ===
+    GlobalTestConfig::Instance().zip_path = input_zip_path;
+
+    // 默认 map，可以根据需要从文件或参数配置扩展
+    GlobalTestConfig::Instance().file_map = {
+        {"file1.txt", "output/file1.txt"},
+        {"file2.txt", "output/file2.txt"}
+    };
+
+    // === Step 3: 启动测试框架 ===
+    std::cout << "[INFO] Running tests with zip: " << input_zip_path << std::endl;
+    int result = RUN_ALL_TESTS();
+
+    // === Step 4: 测试完成后输出状态 ===
+    if (result == 0) {
+        std::cout << "[INFO] ✅ All tests passed!" << std::endl;
+    } else {
+        std::cerr << "[ERROR] ❌ Some tests failed!" << std::endl;
+    }
+
+    return result;
+}
+
+
