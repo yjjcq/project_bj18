@@ -1,0 +1,80 @@
+#include <gtest/gtest.h>
+#include "ZipFileExtractorWrapper.h"
+#include <fstream>
+#include <filesystem>
+#include <map>
+#include <string>
+
+class ZipFileExtractorWrapperTest : public ::testing::Test {
+protected:
+    ZipFileExtractorWrapper wrapper;
+
+    std::string valid_zip_path = "test_data/test.zip";
+    std::string invalid_zip_path = "non_existent.zip";
+
+    std::map<std::string, std::string> valid_map = {
+        {"file1.txt", "output/file1.txt"},
+        {"file2.txt", "output/file2.txt"}
+    };
+
+    // SetUp 和 TearDown 用于每个 TEST_F 前后
+    void SetUp() override {
+        CreateDummyZipFile(valid_zip_path);
+    }
+
+    void TearDown() override {
+        CleanupTestEnvironment();
+    }
+
+    // ✅ 创建测试 zip 文件
+    void CreateDummyZipFile(const std::string& path) {
+        std::filesystem::create_directories("test_data");
+        std::ofstream file(path);
+        if (file.is_open()) {
+            file << "FAKE ZIP CONTENT";
+        }
+    }
+
+    // ✅ 创建空 zip 或无效 zip
+    void CreateEmptyZipFile(const std::string& path) {
+        std::filesystem::create_directories("test_data");
+        std::ofstream file(path); // 创建但不写入内容
+    }
+
+    // ✅ 清理所有临时文件和目录
+    void CleanupTestEnvironment() {
+        std::filesystem::remove_all("test_data");
+        std::filesystem::remove_all("output");
+    }
+
+    // ✅ 创建一个错误的文件路径映射
+    std::map<std::string, std::string> CreateInvalidFileMap() {
+        return {
+            {"", ""},
+            {"  ", "invalid/"},
+            {"\\x00", "\n"}
+        };
+    }
+
+    // ✅ 检查某个解压目标文件是否被创建
+    bool FileExists(const std::string& path) {
+        return std::filesystem::exists(path);
+    }
+};
+TEST_F(ZipFileExtractorWrapperTest, DecompressFailsOnEmptyZipFile) {
+    CreateEmptyZipFile("test_data/empty.zip");
+
+    bool result = wrapper.Decompress("test_data/empty.zip", valid_map, false);
+    EXPECT_FALSE(result);
+}
+TEST_F(ZipFileExtractorWrapperTest, DecompressFailsOnInvalidMapping) {
+    auto invalid_map = CreateInvalidFileMap();
+    bool result = wrapper.Decompress(valid_zip_path, invalid_map, false);
+    EXPECT_FALSE(result);
+}
+TEST_F(ZipFileExtractorWrapperTest, OutputFilesAreGeneratedOnSuccess) {
+    bool result = wrapper.Decompress(valid_zip_path, valid_map, true);
+    EXPECT_TRUE(result);
+    EXPECT_TRUE(FileExists("output/file1.txt"));
+    EXPECT_TRUE(FileExists("output/file2.txt"));
+}
