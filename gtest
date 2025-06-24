@@ -78,3 +78,60 @@ TEST_F(ZipFileExtractorWrapperTest, OutputFilesAreGeneratedOnSuccess) {
     EXPECT_TRUE(FileExists("output/file1.txt"));
     EXPECT_TRUE(FileExists("output/file2.txt"));
 }
+
+//////////////////////////////
+
+
+// ZipFileExtractorWrapperTest.cpp
+#include <gtest/gtest.h>
+#include "ZipFileExtractorWrapper.h"
+#include "GlobalTestConfig.h"
+#include <fstream>
+#include <filesystem>
+
+class ZipFileExtractorWrapperTest : public ::testing::Test {
+protected:
+    ZipFileExtractorWrapper wrapper;
+    std::string valid_zip_path;
+    std::map<std::string, std::string> valid_map;
+
+    void SetUp() override {
+        // 从全局配置获取参数
+        valid_zip_path = GlobalTestConfig::Instance().zip_path;
+        valid_map = GlobalTestConfig::Instance().file_map;
+        CreateDummyZipFile(valid_zip_path);
+    }
+
+    void TearDown() override {
+        std::filesystem::remove_all("test_data");
+        std::filesystem::remove_all("output");
+    }
+
+    void CreateDummyZipFile(const std::string& path) {
+        std::filesystem::create_directories("test_data");
+        std::ofstream(path) << "fake zip content";
+    }
+};
+
+// 示例测试用例
+TEST_F(ZipFileExtractorWrapperTest, DecompressSucceedsWithExternalZipPath) {
+    bool result = wrapper.Decompress(valid_zip_path, valid_map, true);
+    EXPECT_TRUE(result);
+}
+int main(int argc, char** argv) {
+    if (argc < 2) {
+        std::cerr << "Usage: " << argv[0] << " <zip_path>" << std::endl;
+        return 1;
+    }
+
+    // 初始化共享配置
+    GlobalTestConfig::Instance().zip_path = argv[1];
+    GlobalTestConfig::Instance().file_map = {
+        {"file1.txt", "output/file1.txt"},
+        {"file2.txt", "output/file2.txt"}
+    };
+
+    ::testing::InitGoogleTest(&argc, argv);
+    return RUN_ALL_TESTS();
+}
+
